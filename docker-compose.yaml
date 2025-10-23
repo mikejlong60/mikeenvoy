@@ -1,0 +1,21 @@
+version: "3.9"
+
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    expose:
+      - "8080"
+    command: ["/bin/sh","-c","sed -i 's/listen       80/listen 8080/' /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"]
+
+  envoy:
+    image: envoyproxy/envoy:v1.31.0
+    container_name: envoy
+    depends_on:
+      - nginx
+    ports:
+      - "80:80"
+      - "9901:9901"
+    volumes:
+      - ./envoy.yaml:/etc/envoy/envoy.yaml:ro
+    command: ["envoy","-c","/etc/envoy/envoy.yaml","-l","info"]
