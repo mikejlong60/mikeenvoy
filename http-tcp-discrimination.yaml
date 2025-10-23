@@ -1,6 +1,8 @@
 admin:
   address:
-    socket_address: { address: 0.0.0.0, port_value: 9901 }
+    socket_address:
+      address: 0.0.0.0
+      port_value: 9901
 
 node:
   id: local
@@ -10,19 +12,20 @@ static_resources:
   listeners:
     - name: mixed_plain_80
       address:
-        socket_address: { address: 0.0.0.0, port_value: 80 }
+        socket_address:
+          address: 0.0.0.0
+          port_value: 80
 
-      # Detect HTTP on plaintext connections
+      # Detect HTTP traffic on plaintext connections
       listener_filters:
         - name: envoy.filters.listener.http_inspector
           typed_config:
             "@type": type.googleapis.com/envoy.extensions.filters.listener.http_inspector.v3.HttpInspector
 
       filter_chains:
-        # -------- HTTP chain (if HTTP detected)
+        # ---- HTTP chain (for detected HTTP/1.x or h2c)
         - name: http_chain
           filter_chain_match:
-            # http_inspector lets Envoy identify HTTP/1.x and h2c on plaintext
             application_protocols: ["http/1.1", "http/1.0", "h2c"]
           filters:
             - name: envoy.filters.network.http_connection_manager
@@ -30,7 +33,7 @@ static_resources:
                 "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
                 stat_prefix: ingress_http
                 route_config:
-                  name: local
+                  name: local_route
                   virtual_hosts:
                     - name: all
                       domains: ["*"]
@@ -42,9 +45,8 @@ static_resources:
                     typed_config:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
 
-        # -------- Fallback TCP chain (non-HTTP traffic)
+        # ---- Fallback TCP chain (non-HTTP traffic)
         - name: tcp_chain
-          # No match → default chain
           filters:
             - name: envoy.filters.network.tcp_proxy
               typed_config:
@@ -53,6 +55,7 @@ static_resources:
                 cluster: tcp_backend
 
   clusters:
+    # Upstream for HTTP (nginx)
     - name: http_backend
       type: STRICT_DNS
       connect_timeout: 1s
@@ -62,8 +65,11 @@ static_resources:
           - lb_endpoints:
               - endpoint:
                   address:
-                    socket_address: { address: http-app, port_value: 8080 }
+                    socket_address:
+                      address: nginx
+                      port_value: 8080
 
+    # Upstream for non-HTTP TCP echo service
     - name: tcp_backend
       type: STRICT_DNS
       connect_timeout: 1s
@@ -73,4 +79,6 @@ static_resources:
           - lb_endpoints:
               - endpoint:
                   address:
-                    socket_address: { address: tcp-service, port_value: 9000 }
+                    socket_address:
+                      address: tcp-service
+                      port_value: 9000
