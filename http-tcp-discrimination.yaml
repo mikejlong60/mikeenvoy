@@ -51,7 +51,7 @@ static_resources:
 
                         # /endpoint1/bar -> nginx2 (http_backend2)
                         - match:
-                            prefix: "/endpoint1/bar"
+                            prefix: "/endpoint2/foo"
                           route:
                             cluster: http_backend2
                             prefix_rewrite: "/"
