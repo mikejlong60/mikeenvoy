@@ -38,8 +38,28 @@ static_resources:
                     - name: all
                       domains: ["*"]
                       routes:
-                        - match: { prefix: "/" }
-                          route: { cluster: http_backend }
+                        # /endpoint1/foo  -> nginx1 (http_backend1)
+                        - match:
+                            prefix: "/endpoint1/foo"
+                          route:
+                            cluster: http_backend1
+                            prefix_rewrite: "/"
+                          request_headers_to_add:
+                            - header:
+                                key: x-route-header
+                                value: new-value
+
+                        # /endpoint1/bar -> nginx2 (http_backend2)
+                        - match:
+                            prefix: "/endpoint1/bar"
+                          route:
+                            cluster: http_backend2
+                            prefix_rewrite: "/"
+                          request_headers_to_add:
+                            - header:
+                                key: x-route-header
+                                value: new-value
+
                 http_filters:
                   - name: envoy.filters.http.router
                     typed_config:
@@ -56,18 +76,32 @@ static_resources:
 
   clusters:
     # Upstream for HTTP (nginx)
-    - name: http_backend
+    - name: http_backend1
       type: STRICT_DNS
       connect_timeout: 1s
       load_assignment:
-        cluster_name: http_backend
+        cluster_name: http_backend1
         endpoints:
           - lb_endpoints:
               - endpoint:
                   address:
                     socket_address:
-                      address: nginx
+                      address: nginx1
                       port_value: 8080
+
+    # Upstream for HTTP (nginx)
+    - name: http_backend2
+      type: STRICT_DNS
+      connect_timeout: 1s
+      load_assignment:
+        cluster_name: http_backend2
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: nginx2
+                      port_value: 8081
 
     # Upstream for non-HTTP TCP echo service
     - name: tcp_backend
